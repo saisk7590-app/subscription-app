@@ -1,337 +1,238 @@
-import React, { useMemo } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import React from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import Svg, { Circle, Polyline, G, Text as SvgText } from 'react-native-svg';
 
-import Theme from '../constants/theme';
-import { subscriptions, priceHistory, payments } from '../features/analytics/analyticsData';
+import InteractiveLineChart from '../components/charts/InteractiveLineChart';
+import GradientHeader from '../components/GradientHeader';
+import Screen from '../components/Screen';
+import SurfaceCard from '../components/SurfaceCard';
+import theme from '../constants/theme';
+import { payments, priceHistory, subscriptions } from '../data/mockData';
+import { formatCurrency, formatDate } from '../utils/formatters';
 
-function formatCurrency(value) {
-  return `₹${value.toLocaleString()}`;
-}
-
-function formatDate(dateString) {
-  if (!dateString) return '';
-  return new Date(dateString).toLocaleDateString('en-US', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric'
-  });
-}
-
-export default function ServiceDetailsScreen({ serviceName, onBack }) {
-  const service = useMemo(() => subscriptions.find(s => s.serviceName === serviceName), [serviceName]);
+export default function ServiceDetailsScreen({ navigation, route }) {
+  const { serviceName } = route.params;
+  const service = subscriptions.find((item) => item.serviceName === serviceName);
 
   if (!service) {
     return (
-      <View style={styles.errorScreen}>
-        <Text style={styles.errorText}>Service not found</Text>
-        <Pressable onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backButtonText}>Go Back</Text>
-        </Pressable>
-      </View>
+      <Screen scroll={false}>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyText}>Service not found</Text>
+        </View>
+      </Screen>
     );
   }
 
-  const servicePriceHistory = useMemo(() => priceHistory[serviceName] || [], [serviceName]);
-  const totalSpent = useMemo(() => payments
-    .filter(p => p.serviceName === serviceName)
-    .reduce((sum, p) => sum + p.amount, 0), [serviceName]);
+  const servicePayments = payments
+    .filter((item) => item.serviceName === serviceName)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const totalSpent = servicePayments.reduce((sum, item) => sum + item.amount, 0);
+  const servicePriceHistory = (priceHistory[serviceName] || []).map((item) => ({
+    value: item.price,
+    label: item.month,
+  }));
+  const priceChange =
+    servicePriceHistory.length >= 2
+      ? servicePriceHistory[servicePriceHistory.length - 1].value - servicePriceHistory[0].value
+      : 0;
 
-  const priceChange = useMemo(() => {
-    if (servicePriceHistory.length >= 2) {
-      return servicePriceHistory[servicePriceHistory.length - 1].price - servicePriceHistory[0].price;
-    }
-    return 0;
-  }, [servicePriceHistory]);
+  return (
+    <Screen>
+      <GradientHeader
+        title={service.serviceName}
+        subtitle={service.category}
+        leftAction={
+          <Pressable onPress={() => navigation.goBack()} style={styles.backRow}>
+            <Feather name="arrow-left" size={20} color={theme.colors.white} />
+            <Text style={styles.backText}>Back</Text>
+          </Pressable>
+        }
+      />
 
-  const recentPayments = useMemo(() => payments
-    .filter(p => p.serviceName === serviceName)
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 5), [serviceName]);
-
-  const renderHeader = () => (
-    <LinearGradient colors={['#3b82f6', '#8b5cf6']} style={styles.header}>
-      <Pressable onPress={onBack} style={styles.backLink}>
-        <Feather name="arrow-left" size={20} color="#fff" />
-        <Text style={styles.backLinkText}>Back</Text>
-      </Pressable>
-      <Text style={styles.headerTitle}>{service.serviceName}</Text>
-      <Text style={styles.headerSubtitle}>{service.category}</Text>
-    </LinearGradient>
-  );
-
-  const flatData = [
-    { type: 'info_card' },
-    { type: 'price_change_alert' },
-    { type: 'price_timeline' },
-    { type: 'recent_payments' },
-  ];
-
-  const renderItem = ({ item }) => {
-    if (item.type === 'info_card') {
-      return (
-        <View style={styles.card}>
+      <View style={styles.content}>
+        <SurfaceCard>
           <View style={styles.infoGrid}>
-            <View style={styles.infoCol}>
+            <View style={styles.infoBlock}>
               <Text style={styles.infoLabel}>Current Price</Text>
-              <Text style={styles.infoValue}>₹{service.price}</Text>
-              <Text style={styles.infoMeta}>{service.billingType}</Text>
+              <Text style={styles.infoValue}>{formatCurrency(service.price)}</Text>
+              <Text style={styles.infoCaption}>{service.billingType}</Text>
             </View>
-            <View style={styles.infoCol}>
+            <View style={styles.infoBlock}>
               <Text style={styles.infoLabel}>Total Spent</Text>
               <Text style={styles.infoValue}>{formatCurrency(totalSpent)}</Text>
-              <Text style={styles.infoMeta}>All time</Text>
+              <Text style={styles.infoCaption}>All time</Text>
             </View>
           </View>
+
           <View style={styles.divider} />
+
           <View style={styles.infoGrid}>
-            <View style={styles.infoCol}>
+            <View style={styles.infoBlock}>
               <Text style={styles.infoLabel}>Start Date</Text>
-              <Text style={styles.infoValueSmall}>{formatDate(service.startDate)}</Text>
+              <Text style={styles.secondaryValue}>{formatDate(service.startDate)}</Text>
             </View>
-            <View style={styles.infoCol}>
+            <View style={styles.infoBlock}>
               <Text style={styles.infoLabel}>Next Due</Text>
-              <Text style={styles.infoValueSmall}>{formatDate(service.nextDueDate)}</Text>
+              <Text style={styles.secondaryValue}>{formatDate(service.nextDueDate)}</Text>
             </View>
           </View>
-          {service.remark && (
-            <View style={styles.remarkSection}>
+
+          {!!service.remark && (
+            <>
               <View style={styles.divider} />
-              <Text style={styles.infoLabel}>Plan Details</Text>
-              <Text style={styles.remarkText}>{service.remark}</Text>
-            </View>
+              <View>
+                <Text style={styles.infoLabel}>Plan Details</Text>
+                <Text style={styles.planText}>{service.remark}</Text>
+              </View>
+            </>
           )}
-        </View>
-      );
-    }
+        </SurfaceCard>
 
-    if (item.type === 'price_change_alert' && priceChange !== 0) {
-      const isIncrease = priceChange > 0;
-      return (
-        <View style={[styles.alertBox, isIncrease ? styles.alertDanger : styles.alertSuccess]}>
-          <Text style={[styles.alertText, isIncrease ? styles.alertTextDanger : styles.alertTextSuccess]}>
-            Price {isIncrease ? 'increased' : 'decreased'} by ₹{Math.abs(priceChange)} since start
-          </Text>
-        </View>
-      );
-    }
-
-    if (item.type === 'price_timeline' && servicePriceHistory.length > 0) {
-      const maxPrice = Math.max(...servicePriceHistory.map(h => h.price));
-      const points = servicePriceHistory.map((h, i) => `${40 + i * 60},${140 - (h.price / maxPrice) * 100}`).join(' ');
-      return (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Price Timeline</Text>
-          <View style={styles.chartArea}>
-            <Svg width="100%" height="180">
-              <Polyline points={points} fill="none" stroke="#8b5cf6" strokeWidth="3" />
-              {servicePriceHistory.map((h, i) => (
-                <G key={h.month}>
-                  <Circle cx={40 + i * 60} cy={140 - (h.price / maxPrice) * 100} r="4" fill="#8b5cf6" />
-                  <SvgText x={40 + i * 60} y="160" fontSize="10" fill="#64748b" textAnchor="middle">{h.month}</SvgText>
-                </G>
-              ))}
-            </Svg>
+        {priceChange !== 0 && (
+          <View style={[styles.changeCard, priceChange > 0 ? styles.changeDanger : styles.changeSuccess]}>
+            <Text style={[styles.changeCardText, priceChange > 0 ? styles.changeDangerText : styles.changeSuccessText]}>
+              Price {priceChange > 0 ? 'increased' : 'decreased'} by {formatCurrency(Math.abs(priceChange))} since start
+            </Text>
           </View>
-        </View>
-      );
-    }
+        )}
 
-    if (item.type === 'recent_payments') {
-      return (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Recent Payments</Text>
-          <View style={styles.paymentList}>
-            {recentPayments.map((p, i) => (
-              <View key={p.id} style={[styles.paymentRow, i === recentPayments.length - 1 && styles.noBorder]}>
-                <Text style={styles.paymentDate}>{formatDate(p.date)}</Text>
-                <Text style={styles.paymentAmount}>₹{p.amount}</Text>
+        {!!servicePriceHistory.length && (
+          <SurfaceCard>
+            <Text style={styles.sectionTitle}>Price Timeline</Text>
+            <InteractiveLineChart
+              data={servicePriceHistory}
+              color={theme.colors.purple}
+              valueFormatter={formatCurrency}
+            />
+          </SurfaceCard>
+        )}
+
+        <SurfaceCard>
+          <Text style={styles.sectionTitle}>Recent Payments</Text>
+          <View style={styles.paymentsList}>
+            {servicePayments.slice(0, 5).map((payment, index) => (
+              <View key={payment.id} style={[styles.paymentRow, index !== Math.min(servicePayments.length, 5) - 1 && styles.paymentBorder]}>
+                <Text style={styles.paymentDate}>{formatDate(payment.date)}</Text>
+                <Text style={styles.paymentAmount}>{formatCurrency(payment.amount)}</Text>
               </View>
             ))}
           </View>
-        </View>
-      );
-    }
-
-    return null;
-  };
-
-  return (
-    <View style={styles.screen}>
-      <FlatList
-        data={flatData}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={renderItem}
-        ListHeaderComponent={renderHeader}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      />
-    </View>
+        </SurfaceCard>
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  emptyState: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 32,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+  emptyText: {
+    color: theme.colors.textSecondary,
+    ...theme.typography.body,
   },
-  backLink: {
+  backRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     marginBottom: 16,
   },
-  backLinkText: {
-    color: '#fff',
-    fontSize: 16,
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  headerSubtitle: {
-    color: '#dbeafe',
-    fontSize: 14,
-    marginTop: 4,
+  backText: {
+    color: theme.colors.white,
+    ...theme.typography.bodyMedium,
   },
   content: {
     paddingHorizontal: 16,
-    paddingVertical: 24,
+    paddingTop: 24,
     gap: 16,
-  },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.02,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#0f172a',
-    marginBottom: 16,
   },
   infoGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 16,
   },
-  infoCol: {
+  infoBlock: {
     flex: 1,
   },
   infoLabel: {
-    color: '#64748b',
-    fontSize: 13,
-    marginBottom: 4,
+    color: theme.colors.textSecondary,
+    ...theme.typography.body,
   },
   infoValue: {
-    fontSize: 24,
+    marginTop: 4,
+    color: theme.colors.textPrimary,
+    fontSize: 28,
+    lineHeight: 34,
     fontWeight: '700',
-    color: '#0f172a',
   },
-  infoValueSmall: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#0f172a',
+  infoCaption: {
+    marginTop: 4,
+    color: theme.colors.textSecondary,
+    ...theme.typography.caption,
   },
-  infoMeta: {
-    fontSize: 12,
-    color: '#64748b',
-    marginTop: 2,
+  secondaryValue: {
+    marginTop: 4,
+    color: theme.colors.textPrimary,
+    ...theme.typography.bodyMedium,
   },
   divider: {
     height: 1,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#F3F4F6',
     marginVertical: 16,
   },
-  remarkSection: {
-    marginTop: 0,
+  planText: {
+    marginTop: 4,
+    color: theme.colors.textPrimary,
+    ...theme.typography.body,
   },
-  remarkText: {
-    fontSize: 14,
-    color: '#0f172a',
-    lineHeight: 20,
-  },
-  alertBox: {
-    borderRadius: 16,
+  changeCard: {
+    borderRadius: theme.radius.lg,
     padding: 16,
     borderWidth: 1,
   },
-  alertDanger: {
-    backgroundColor: '#fef2f2',
-    borderColor: '#fecaca',
+  changeDanger: {
+    backgroundColor: theme.colors.redSoft,
+    borderColor: '#FECACA',
   },
-  alertSuccess: {
-    backgroundColor: '#f0fdf4',
-    borderColor: '#bcfce7',
+  changeSuccess: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#BBF7D0',
   },
-  alertText: {
-    fontSize: 14,
-    fontWeight: '500',
-    textAlign: 'center',
+  changeCardText: {
+    ...theme.typography.bodyMedium,
   },
-  alertTextDanger: {
-    color: '#991b1b',
+  changeDangerText: {
+    color: theme.colors.redDark,
   },
-  alertTextSuccess: {
+  changeSuccessText: {
     color: '#166534',
   },
-  chartArea: {
-    height: 180,
+  sectionTitle: {
+    marginBottom: 16,
+    color: theme.colors.textPrimary,
+    ...theme.typography.h2,
   },
-  paymentList: {
+  paymentsList: {
     gap: 0,
   },
   paymentRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
   },
-  noBorder: {
-    borderBottomWidth: 0,
+  paymentBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
   paymentDate: {
-    fontSize: 14,
-    color: '#0f172a',
+    color: theme.colors.textPrimary,
+    ...theme.typography.body,
   },
   paymentAmount: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0f172a',
-  },
-  errorScreen: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#64748b',
-  },
-  backButton: {
-    marginTop: 16,
-    padding: 12,
-    backgroundColor: '#3b82f6',
-    borderRadius: 8,
-  },
-  backButtonText: {
-    color: '#fff',
-    fontWeight: '600',
+    color: theme.colors.textPrimary,
+    ...theme.typography.bodyMedium,
   },
 });

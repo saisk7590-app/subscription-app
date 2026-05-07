@@ -22,7 +22,8 @@ import { useSearchParams } from 'react-router-dom';
 export function Analytics() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('analytics');
-  const [timeFilter, setTimeFilter] = useState('1Y');
+  const [yearlySpendingFilter, setYearlySpendingFilter] = useState('3Y');
+  const [priceTrendFilter, setPriceTrendFilter] = useState('1Y');
   const [selectedService, setSelectedService] = useState('Netflix');
   const [showServicePicker, setShowServicePicker] = useState(false);
 
@@ -92,29 +93,19 @@ export function Analytics() {
         </div>
       </div>
 
-      <div className="px-4 py-6 space-y-4">
+      <div className="px-4 py-6 space-y-6">
         {activeTab === 'analytics' ? (
           <>
-            {/* Time Filter */}
-            <div className="flex gap-2 justify-center">
-              {['1Y', '3Y', '5Y', '10Y'].map((filter) => (
-                <button
-                  key={filter}
-                  onClick={() => setTimeFilter(filter)}
-                  className={`px-5 py-2 rounded-xl font-medium transition-all text-sm ${
-                    timeFilter === filter
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'bg-white text-gray-600 border border-gray-200'
-                  }`}
-                >
-                  {filter}
-                </button>
-              ))}
-            </div>
-
+        {subscriptions.length === 0 ? (
+          <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
+            <p className="text-gray-500 mb-2">No data available</p>
+            <p className="text-sm text-gray-400">Add subscription to get insights</p>
+          </div>
+        ) : (
+          <>
         {/* Chart 1: Category Distribution */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm">
-          <h2 className="text-gray-900 font-semibold mb-4">Category Distribution</h2>
+        <div className="bg-white rounded-2xl p-6 shadow-sm">
+          <h2 className="text-gray-900 font-semibold text-lg mb-5">Category Distribution</h2>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -138,8 +129,25 @@ export function Analytics() {
         </div>
 
         {/* Chart 2: Yearly Spending */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm">
-          <h2 className="text-gray-900 font-semibold mb-4">Yearly Spending</h2>
+        <div className="bg-white rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-gray-900 font-semibold text-lg">Yearly Spending</h2>
+            <div className="flex gap-1.5">
+              {['1Y', '3Y', '5Y', '10Y'].map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() => setYearlySpendingFilter(filter)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    yearlySpendingFilter === filter
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {filter}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={yearlySpendingData}>
@@ -157,16 +165,33 @@ export function Analytics() {
         </div>
 
         {/* Chart 3: Price Trend */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm">
-          <h2 className="text-gray-900 font-semibold mb-4">Price Trend</h2>
-          
+        <div className="bg-white rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-gray-900 font-semibold text-lg">Price Trend</h2>
+            <div className="flex gap-1.5">
+              {['1Y', '3Y', '5Y'].map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() => setPriceTrendFilter(filter)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    priceTrendFilter === filter
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {filter}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Service Selector */}
-          <div className="relative mb-4">
+          <div className="relative mb-5">
             <button
               onClick={() => setShowServicePicker(!showServicePicker)}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-left flex items-center justify-between"
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-left flex items-center justify-between hover:border-gray-300 transition-colors"
             >
-              <span className="text-gray-900">{selectedService}</span>
+              <span className="text-gray-900 font-medium">{selectedService}</span>
               <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
@@ -214,8 +239,8 @@ export function Analytics() {
         </div>
 
         {/* Chart 4: OTT Spending Spike */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm">
-          <h2 className="text-gray-900 font-semibold mb-4">OTT Spending Trend</h2>
+        <div className="bg-white rounded-2xl p-6 shadow-sm">
+          <h2 className="text-gray-900 font-semibold text-lg mb-5">OTT Spending Trend</h2>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={ottSpendingData}>
@@ -240,8 +265,8 @@ export function Analytics() {
         </div>
 
         {/* Chart 5: Top Services */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm">
-          <h2 className="text-gray-900 font-semibold mb-4">Top Services by Spending</h2>
+        <div className="bg-white rounded-2xl p-6 shadow-sm">
+          <h2 className="text-gray-900 font-semibold text-lg mb-5">Top Services by Spending</h2>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={topServicesData} layout="vertical">
@@ -257,6 +282,8 @@ export function Analytics() {
             </ResponsiveContainer>
           </div>
         </div>
+          </>
+        )}
           </>
         ) : (
           <Stats />

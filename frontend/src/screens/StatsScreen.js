@@ -1,445 +1,260 @@
 import React, { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View, TextInput } from 'react-native';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 
-import Theme from '../constants/theme';
-import { subscriptions, yearlySpendingData } from '../features/analytics/analyticsData';
+import SearchField from '../components/SearchField';
+import SelectField from '../components/SelectField';
+import SurfaceCard from '../components/SurfaceCard';
+import theme from '../constants/theme';
+import { subscriptions, yearlySpendingData } from '../data/mockData';
+import { formatCurrency, getYearlyPrice } from '../utils/formatters';
 
-function formatCurrency(value) {
-  return `₹${Math.round(value).toLocaleString()}`;
-}
-
-export default function StatsScreen({ onSelectService }) {
+export default function StatsScreen({ navigation }) {
   const [selectedYear, setSelectedYear] = useState('2026');
-  const [showYearPicker, setShowYearPicker] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const years = ['2024', '2025', '2026'];
+  const currentYearData = yearlySpendingData.find((item) => item.year === selectedYear);
+  const previousYearData = yearlySpendingData.find((item) => item.year === String(Number(selectedYear) - 1));
 
-  // Calculations for Stats
-  const currentYearData = useMemo(() => yearlySpendingData.find(d => d.year === selectedYear), [selectedYear]);
-  const previousYearData = useMemo(() => yearlySpendingData.find(d => d.year === String(Number(selectedYear) - 1)), [selectedYear]);
+  let percentageChange = 0;
+  if (currentYearData && previousYearData && previousYearData.amount > 0) {
+    percentageChange = ((currentYearData.amount - previousYearData.amount) / previousYearData.amount) * 100;
+  }
 
-  const statsPercentageChange = useMemo(() => {
-    if (currentYearData && previousYearData && previousYearData.amount > 0) {
-      return ((currentYearData.amount - previousYearData.amount) / previousYearData.amount) * 100;
-    }
-    return 0;
-  }, [currentYearData, previousYearData]);
+  const categoryTotals = useMemo(
+    () =>
+      subscriptions.reduce((acc, item) => {
+        acc[item.category] = (acc[item.category] || 0) + getYearlyPrice(item);
+        return acc;
+      }, {}),
+    []
+  );
 
-  const categoryTotals = useMemo(() => subscriptions.reduce((acc, sub) => {
-    const yearlyPrice = sub.billingType === 'Monthly' ? sub.price * 12 : sub.price;
-    acc[sub.category] = (acc[sub.category] || 0) + yearlyPrice;
-    return acc;
-  }, {}), []);
-
-  const totalYearlySpending = useMemo(() => Object.values(categoryTotals).reduce((sum, val) => sum + val, 0), [categoryTotals]);
-
-  const categoriesWithPercentage = useMemo(() => Object.entries(categoryTotals)
+  const totalYearlySpending = Object.values(categoryTotals).reduce((sum, value) => sum + value, 0);
+  const categoriesWithPercentage = Object.entries(categoryTotals)
     .map(([category, amount]) => ({
       category,
       amount,
-      percentage: (amount / totalYearlySpending) * 100,
+      percentage: totalYearlySpending ? (amount / totalYearlySpending) * 100 : 0,
     }))
-    .sort((a, b) => b.amount - a.amount), [categoryTotals, totalYearlySpending]);
+    .sort((a, b) => b.amount - a.amount);
 
-  const serviceTotals = useMemo(() => subscriptions
-    .map(sub => ({
-      ...sub,
-      yearlyTotal: sub.billingType === 'Monthly' ? sub.price * 12 : sub.price,
-    }))
-    .filter(sub => sub.serviceName.toLowerCase().includes(searchQuery.toLowerCase()))
-    .sort((a, b) => b.yearlyTotal - a.yearlyTotal), [searchQuery]);
+  const serviceTotals = subscriptions
+    .map((item) => ({ ...item, yearlyTotal: getYearlyPrice(item) }))
+    .filter((item) => item.serviceName.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => b.yearlyTotal - a.yearlyTotal);
 
-  const insights = useMemo(() => {
-    const list = [];
-    if (categoriesWithPercentage.length > 0) {
-      const topCategory = categoriesWithPercentage[0];
-      if (statsPercentageChange > 0) {
-        list.push(`${topCategory.category} increased by ${Math.abs(Math.round(statsPercentageChange))}% this year`);
-      }
-      list.push(`${topCategory.category} is your highest spending category`);
+  const insights = [];
+  if (categoriesWithPercentage[0]) {
+    if (percentageChange > 0) {
+      insights.push(`${categoriesWithPercentage[0].category} increased by ${Math.abs(Math.round(percentageChange))}% this year`);
     }
-    const ottTotal3Years = subscriptions
-      .filter(sub => sub.category === 'OTT')
-      .reduce((sum, sub) => {
-        const yearlyPrice = sub.billingType === 'Monthly' ? sub.price * 12 : sub.price;
-        return sum + (yearlyPrice * 3);
-      }, 0);
-    list.push(`You spent ₹${Math.round(ottTotal3Years).toLocaleString()} on OTT in last 3 years`);
-    return list;
-  }, [categoriesWithPercentage, statsPercentageChange]);
+    insights.push(`${categoriesWithPercentage[0].category} is your highest spending category`);
+  }
+  insights.push(`You spent ${formatCurrency(subscriptions.filter((item) => item.category === 'OTT').reduce((sum, item) => sum + getYearlyPrice(item) * 3, 0))} on OTT in last 3 years`);
 
-  const renderHeader = () => (
-    <View style={styles.header}>
-      <Text style={styles.headerTitle}>Statistics</Text>
-      <Text style={styles.headerSubtitle}>Yearly breakdown and insights</Text>
-    </View>
-  );
+  return (
+    <View style={styles.container}>
+      <SearchField value={searchQuery} onChangeText={setSearchQuery} placeholder="Search subscriptions..." />
+      <SelectField value={selectedYear} options={years} onSelect={setSelectedYear} label="Year" />
 
-  const flatData = [
-    { type: 'search' },
-    { type: 'year_picker' },
-    { type: 'summary' },
-    { type: 'breakdown' },
-    { type: 'insights' },
-    { type: 'services' },
-  ];
-
-  const renderItem = ({ item }) => {
-    if (item.type === 'search') {
-      return (
-        <View style={styles.searchBar}>
-          <Feather name="search" size={18} color="#94a3b8" />
-          <TextInput 
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search subscriptions..."
-            placeholderTextColor="#94a3b8"
-            style={styles.searchInput}
-          />
-        </View>
-      );
-    }
-
-    if (item.type === 'year_picker') {
-      return (
-        <View style={{ zIndex: 10 }}>
-          <Pressable 
-            onPress={() => setShowYearPicker(!showYearPicker)}
-            style={styles.pickerButton}
-          >
-            <Text style={styles.pickerButtonText}>{selectedYear}</Text>
-            <Feather name="chevron-down" size={18} color="#94a3b8" />
-          </Pressable>
-          {showYearPicker && (
-            <View style={styles.dropdown}>
-              {years.map(y => (
-                <Pressable key={y} onPress={() => { setSelectedYear(y); setShowYearPicker(false); }} style={styles.dropdownItem}>
-                  <Text style={[styles.dropdownText, selectedYear === y && styles.dropdownTextActive]}>{y}</Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
-        </View>
-      );
-    }
-
-    if (item.type === 'summary') {
-      return (
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Total Spending</Text>
-          <Text style={styles.summaryValue}>
-            {formatCurrency(currentYearData ? currentYearData.amount : totalYearlySpending)}
-          </Text>
-          {statsPercentageChange !== 0 && (
-            <View style={styles.summaryTrend}>
-              <Feather 
-                name={statsPercentageChange > 0 ? "trending-up" : "trending-down"} 
-                size={16} 
-                color={statsPercentageChange > 0 ? '#16a34a' : '#dc2626'} 
-              />
-              <Text style={[styles.trendText, statsPercentageChange > 0 ? styles.textSuccess : styles.textDanger]}>
-                {Math.abs(Math.round(statsPercentageChange))}% vs {Number(selectedYear) - 1}
-              </Text>
-            </View>
-          )}
-        </View>
-      );
-    }
-
-    if (item.type === 'breakdown') {
-      return (
-        <View style={styles.chartCard}>
-          <Text style={styles.chartTitle}>Category Breakdown</Text>
-          <View style={styles.listContainer}>
-            {categoriesWithPercentage.map(cat => (
-              <View key={cat.category} style={styles.breakdownRow}>
-                <View>
-                  <Text style={styles.breakdownName}>{cat.category}</Text>
-                  <Text style={styles.breakdownMeta}>{Math.round(cat.percentage)}%</Text>
-                </View>
-                <Text style={styles.breakdownValue}>{formatCurrency(cat.amount)}</Text>
-              </View>
-            ))}
+      <SurfaceCard style={styles.summaryCard}>
+        <Text style={styles.mutedLabel}>Total Spending</Text>
+        <Text style={styles.summaryValue}>{formatCurrency(currentYearData ? currentYearData.amount : totalYearlySpending)}</Text>
+        {percentageChange !== 0 && (
+          <View style={[styles.changePill, percentageChange > 0 ? styles.changePositive : styles.changeNegative]}>
+            <Feather
+              name={percentageChange > 0 ? 'trending-up' : 'trending-down'}
+              size={16}
+              color={percentageChange > 0 ? theme.colors.green : theme.colors.red}
+            />
+            <Text style={[styles.changeText, percentageChange > 0 ? styles.changeTextPositive : styles.changeTextNegative]}>
+              {Math.abs(Math.round(percentageChange))}% vs {Number(selectedYear) - 1}
+            </Text>
           </View>
-        </View>
-      );
-    }
+        )}
+      </SurfaceCard>
 
-    if (item.type === 'insights') {
-      return (
-        <View style={styles.insightsCard}>
-          <Text style={styles.insightsTitle}>Insights</Text>
-          {insights.map((insight, index) => (
-            <View key={index} style={styles.insightRow}>
+      <SurfaceCard>
+        <Text style={styles.sectionTitle}>Category Breakdown</Text>
+        <View style={styles.columnGap}>
+          {categoriesWithPercentage.map((item) => (
+            <View key={item.category} style={styles.breakdownRow}>
+              <View>
+                <Text style={styles.rowTitle}>{item.category}</Text>
+                <Text style={styles.rowSubtitle}>{Math.round(item.percentage)}% of total</Text>
+              </View>
+              <Text style={styles.rowValue}>{formatCurrency(item.amount)}</Text>
+            </View>
+          ))}
+        </View>
+      </SurfaceCard>
+
+      <View style={styles.insightCard}>
+        <Text style={styles.sectionTitle}>Insights</Text>
+        <View style={styles.columnGap}>
+          {insights.map((insight) => (
+            <View key={insight} style={styles.insightRow}>
               <View style={styles.insightDot} />
               <Text style={styles.insightText}>{insight}</Text>
             </View>
           ))}
         </View>
-      );
-    }
+      </View>
 
-    if (item.type === 'services') {
-      return (
-        <View style={styles.chartCard}>
-          <Text style={styles.chartTitle}>All Services</Text>
-          <View style={styles.listContainer}>
-            {serviceTotals.map(service => (
-              <Pressable 
-                key={service.id} 
-                onPress={() => onSelectService && onSelectService(service.serviceName)}
+      <SurfaceCard>
+        <Text style={styles.sectionTitle}>All Services</Text>
+        {serviceTotals.length === 0 ? (
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyTitle}>No data available</Text>
+            <Text style={styles.emptySubtitle}>Add subscription to get insights</Text>
+          </View>
+        ) : (
+          <View style={styles.serviceList}>
+            {serviceTotals.map((service) => (
+              <Pressable
+                key={service.id}
                 style={styles.serviceRow}
+                onPress={() => navigation.navigate('ServiceDetails', { serviceName: service.serviceName })}
               >
                 <View>
-                  <Text style={styles.serviceName}>{service.serviceName}</Text>
-                  <Text style={styles.serviceMeta}>{service.billingType}</Text>
+                  <Text style={styles.rowTitle}>{service.serviceName}</Text>
+                  <Text style={styles.rowSubtitle}>{service.billingType}</Text>
                 </View>
-                <Text style={styles.serviceValue}>{formatCurrency(service.yearlyTotal)}</Text>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={styles.rowValue}>{formatCurrency(service.yearlyTotal)}</Text>
+                  <Text style={styles.yearlyLabel}>yearly</Text>
+                </View>
               </Pressable>
             ))}
           </View>
-        </View>
-      );
-    }
-
-    return null;
-  };
-
-  return (
-    <View style={styles.screen}>
-      <FlatList
-        data={flatData}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={renderItem}
-        ListHeaderComponent={renderHeader}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      />
+        )}
+      </SurfaceCard>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 32,
-    paddingBottom: 24,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-  },
-  headerTitle: {
-    color: '#0f172a',
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  headerSubtitle: {
-    color: '#64748b',
-    fontSize: 14,
-    marginTop: 4,
-  },
-  content: {
-    paddingHorizontal: 16,
-    paddingVertical: 24,
-    gap: 16,
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    height: 52,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 12,
-    fontSize: 14,
-    color: '#0f172a',
-  },
-  pickerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    padding: 12,
-  },
-  pickerButtonText: {
-    color: '#0f172a',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  dropdown: {
-    position: 'absolute',
-    top: 50,
-    left: 0,
-    right: 0,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-    zIndex: 100,
-  },
-  dropdownItem: {
-    padding: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-  },
-  dropdownText: {
-    color: '#0f172a',
-    fontSize: 14,
-  },
-  dropdownTextActive: {
-    color: '#3b82f6',
-    fontWeight: '600',
+  container: {
+    gap: 20,
   },
   summaryCard: {
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.02,
-    shadowRadius: 8,
-    elevation: 2,
+    padding: 28,
   },
-  summaryLabel: {
-    color: '#64748b',
-    fontSize: 14,
-    marginBottom: 8,
+  mutedLabel: {
+    color: theme.colors.textSecondary,
+    ...theme.typography.body,
   },
   summaryValue: {
-    color: '#0f172a',
-    fontSize: 32,
+    marginTop: 12,
+    color: theme.colors.textPrimary,
+    fontSize: 42,
+    lineHeight: 50,
     fontWeight: '700',
   },
-  summaryTrend: {
+  changePill: {
+    marginTop: 12,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 12,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: theme.radius.pill,
   },
-  trendText: {
-    fontSize: 14,
-    fontWeight: '600',
+  changePositive: {
+    backgroundColor: theme.colors.greenSoft,
   },
-  textSuccess: {
-    color: '#16a34a',
+  changeNegative: {
+    backgroundColor: theme.colors.redSoft,
   },
-  textDanger: {
-    color: '#dc2626',
+  changeText: {
+    ...theme.typography.captionStrong,
   },
-  chartCard: {
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.02,
-    shadowRadius: 8,
-    elevation: 2,
+  changeTextPositive: {
+    color: theme.colors.green,
   },
-  chartTitle: {
-    color: '#0f172a',
-    fontSize: 16,
-    fontWeight: '600',
+  changeTextNegative: {
+    color: theme.colors.red,
+  },
+  sectionTitle: {
     marginBottom: 16,
+    color: theme.colors.textPrimary,
+    ...theme.typography.h2,
   },
-  listContainer: {
-    gap: 0,
+  columnGap: {
+    gap: 16,
   },
   breakdownRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    justifyContent: 'space-between',
   },
-  breakdownName: {
-    color: '#0f172a',
-    fontWeight: '500',
-    fontSize: 15,
+  rowTitle: {
+    color: theme.colors.textPrimary,
+    ...theme.typography.h3,
   },
-  breakdownMeta: {
-    color: '#64748b',
-    fontSize: 13,
+  rowSubtitle: {
     marginTop: 2,
+    color: theme.colors.textSecondary,
+    ...theme.typography.body,
   },
-  breakdownValue: {
-    color: '#0f172a',
-    fontSize: 16,
+  rowValue: {
+    color: theme.colors.textPrimary,
+    fontSize: 20,
+    lineHeight: 28,
     fontWeight: '700',
   },
-  insightsCard: {
-    backgroundColor: '#eff6ff',
+  insightCard: {
     borderWidth: 1,
-    borderColor: '#dbeafe',
-    borderRadius: 24,
-    padding: 20,
-  },
-  insightsTitle: {
-    color: '#0f172a',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
+    borderColor: '#BFDBFE',
+    backgroundColor: '#EFF6FF',
+    borderRadius: theme.radius.lg,
+    padding: 24,
+    ...theme.shadows.card,
   },
   insightRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 10,
-    marginBottom: 8,
+    gap: 12,
   },
   insightDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#3b82f6',
-    marginTop: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginTop: 6,
+    backgroundColor: theme.colors.primary,
   },
   insightText: {
-    color: '#1e3a8a',
-    fontSize: 14,
-    lineHeight: 20,
     flex: 1,
+    color: '#1E3A8A',
+    ...theme.typography.body,
+  },
+  emptyWrap: {
+    alignItems: 'center',
+    paddingVertical: 24,
+  },
+  emptyTitle: {
+    color: theme.colors.textSecondary,
+    ...theme.typography.bodyMedium,
+  },
+  emptySubtitle: {
+    marginTop: 4,
+    color: theme.colors.textMuted,
+    ...theme.typography.body,
+  },
+  serviceList: {
+    gap: 8,
   },
   serviceRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
   },
-  serviceName: {
-    color: '#0f172a',
-    fontWeight: '500',
-    fontSize: 15,
-  },
-  serviceMeta: {
-    color: '#64748b',
-    fontSize: 13,
-    marginTop: 2,
-  },
-  serviceValue: {
-    color: '#0f172a',
-    fontSize: 16,
-    fontWeight: '700',
+  yearlyLabel: {
+    color: theme.colors.textMuted,
+    ...theme.typography.caption,
   },
 });

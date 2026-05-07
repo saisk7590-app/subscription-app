@@ -37,11 +37,11 @@ export function Dashboard() {
     return acc;
   }, {});
 
-  // Convert to array and sort by value
-  const topCategories = Object.entries(categoryTotalsMap)
+  // Convert to array and sort by value - max 4 for KPI cards
+  const topCategoriesKPI = Object.entries(categoryTotalsMap)
     .map(([category, amount]) => ({ category, amount: amount as number }))
     .sort((a, b) => b.amount - a.amount)
-    .slice(0, 3);
+    .slice(0, 4);
 
   // Map categories to icons and colors
   const categoryIcons: any = {
@@ -98,6 +98,9 @@ export function Dashboard() {
     return days > 0 && days <= 7;
   });
 
+  // Check if there are subscriptions
+  const hasSubscriptions = subscriptions.length > 0;
+
   return (
     <MobileContainer>
       {/* Header */}
@@ -107,37 +110,48 @@ export function Dashboard() {
       </div>
 
       <div className="px-4 -mt-4 space-y-6">
+        {!hasSubscriptions ? (
+          <div className="bg-white rounded-2xl p-8 text-center shadow-sm mt-4">
+            <p className="text-gray-500 mb-2">No data available</p>
+            <p className="text-sm text-gray-400">Add subscription to get insights</p>
+            <button
+              onClick={() => navigate('/add')}
+              className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-xl font-medium"
+            >
+              Add Subscription
+            </button>
+          </div>
+        ) : (
+          <>
         {/* Total Yearly Spending Card - Main KPI */}
         <div
-          className="bg-white rounded-2xl p-8 shadow-md cursor-pointer active:scale-98 transition-transform"
+          className="bg-white rounded-2xl p-8 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
           onClick={() => navigate('/analytics')}
         >
-          <p className="text-gray-500 text-sm mb-2">Total Yearly Spending</p>
-          <p className="text-5xl font-bold text-gray-900">₹{currentYearData ? currentYearData.amount.toLocaleString() : Math.round(totalYearlySpending).toLocaleString()}</p>
-          <div className="flex items-center gap-2 mt-3">
-            <span className="text-gray-600 font-medium">{currentYear}</span>
-            {percentageChange !== 0 && (
-              <div className={`flex items-center gap-1 px-2 py-1 rounded-lg ${
-                percentageChange > 0
-                  ? 'bg-green-50 text-green-600'
-                  : 'bg-red-50 text-red-600'
-              }`}>
-                {percentageChange > 0 ? (
-                  <TrendingUp className="w-3 h-3" />
-                ) : (
-                  <TrendingDown className="w-3 h-3" />
-                )}
-                <span className="text-xs font-semibold">
-                  {Math.abs(Math.round(percentageChange))}% vs {currentYear - 1}
-                </span>
-              </div>
-            )}
-          </div>
+          <p className="text-gray-500 text-sm mb-3">Total Yearly Spending</p>
+          <p className="text-5xl font-bold text-gray-900 mb-2">₹{currentYearData ? currentYearData.amount.toLocaleString() : Math.round(totalYearlySpending).toLocaleString()}</p>
+          <p className="text-gray-600 text-sm mb-2">{currentYear}</p>
+          {percentageChange !== 0 && (
+            <div className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-semibold ${
+              percentageChange > 0
+                ? 'bg-green-50 text-green-700'
+                : 'bg-red-50 text-red-700'
+            }`}>
+              {percentageChange > 0 ? (
+                <TrendingUp className="w-4 h-4" />
+              ) : (
+                <TrendingDown className="w-4 h-4" />
+              )}
+              <span>
+                ↑ {Math.abs(Math.round(percentageChange))}% vs {currentYear - 1}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Category KPI Cards Row */}
-        <div className="grid grid-cols-3 gap-3">
-          {topCategories.map((cat) => {
+        <div className={`grid ${topCategoriesKPI.length === 4 ? 'grid-cols-2' : 'grid-cols-3'} gap-4`}>
+          {topCategoriesKPI.map((cat) => {
             const config = getIconConfig(cat.category);
             const Icon = config.icon;
 
@@ -152,42 +166,38 @@ export function Dashboard() {
             return (
               <div
                 key={cat.category}
-                className="bg-white rounded-xl p-4 shadow-sm cursor-pointer active:scale-95 transition-transform"
+                className="bg-white rounded-xl p-4 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
                 onClick={() => navigate('/analytics?tab=stats&category=' + cat.category)}
               >
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-2 mb-3">
                   <div className={`${iconBgClass} p-2 rounded-lg`}>
                     <Icon className={`w-4 h-4 ${iconColorClass}`} />
                   </div>
-                  <p className="text-xs text-gray-500">{cat.category}</p>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{cat.category}</p>
                 </div>
-                <p className="text-lg font-bold text-gray-900">₹{Math.round(cat.amount).toLocaleString()}</p>
+                <p className="text-xl font-bold text-gray-900">₹{Math.round(cat.amount).toLocaleString()}</p>
               </div>
             );
           })}
         </div>
 
-        {/* Insight Card */}
-        <div className="bg-purple-50 border border-purple-100 rounded-2xl p-4 shadow-sm">
-          <p className="text-purple-900 font-medium">
-            {topCategories.length > 0 && `${topCategories[0].category} is your highest spending category at ₹${Math.round(topCategories[0].amount).toLocaleString()} this year`}
-          </p>
-        </div>
-
-        {/* Alert Card */}
-        {upcomingDue && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-red-900 font-medium">{upcomingDue.serviceName} due in {getDaysUntil(upcomingDue.nextDueDate)} days</p>
-              <p className="text-red-700 text-sm mt-0.5">₹{upcomingDue.price} • {upcomingDue.nextDueDate}</p>
+        {/* Insight Card - Only ONE */}
+        {topCategoriesKPI.length > 0 && (
+          <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-100 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-lg">💡</span>
+              </div>
+              <p className="text-purple-900 font-medium leading-relaxed">
+                {topCategoriesKPI[0].category} is your highest spending category at ₹{Math.round(topCategoriesKPI[0].amount).toLocaleString()} this year
+              </p>
             </div>
           </div>
         )}
 
         {/* Category Distribution */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm">
-          <h2 className="text-gray-900 font-semibold mb-3">Category Distribution</h2>
+        <div className="bg-white rounded-2xl p-6 shadow-sm">
+          <h2 className="text-gray-900 font-semibold text-lg mb-4">Category Distribution</h2>
           <div className="h-40 mb-3">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -226,27 +236,44 @@ export function Dashboard() {
         </div>
 
         {/* Top Services */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm">
-          <h2 className="text-gray-900 font-semibold mb-4">Top Services</h2>
-          <div className="space-y-3">
+        <div className="bg-white rounded-2xl p-6 shadow-sm">
+          <h2 className="text-gray-900 font-semibold text-lg mb-4">Top Services</h2>
+          <div className="space-y-4">
             {topServices.map((service) => (
               <div
                 key={service.id}
-                className="flex items-center justify-between py-2 cursor-pointer hover:bg-gray-50 rounded-lg px-2 -mx-2 transition-colors"
+                className="flex items-center justify-between py-3 cursor-pointer hover:bg-gray-50 rounded-xl px-3 -mx-3 transition-all"
                 onClick={() => navigate(`/service/${service.serviceName}`)}
               >
                 <div>
-                  <p className="text-gray-900 font-medium">{service.serviceName}</p>
-                  <p className="text-gray-500 text-sm">{service.category}</p>
+                  <p className="text-gray-900 font-semibold">{service.serviceName}</p>
+                  <p className="text-gray-500 text-sm mt-0.5">{service.category}</p>
                 </div>
-                <p className="text-gray-900 font-semibold">
-                  ₹{service.billingType === 'Yearly' ? Math.round(service.price / 12) : service.price}
-                  <span className="text-gray-500 text-xs font-normal">/mo</span>
-                </p>
+                <div className="text-right">
+                  <p className="text-gray-900 font-bold text-lg">
+                    ₹{service.billingType === 'Yearly' ? Math.round(service.price / 12) : service.price}
+                  </p>
+                  <p className="text-gray-400 text-xs">/month</p>
+                </div>
               </div>
             ))}
           </div>
         </div>
+
+        {/* Alert Card */}
+        {upcomingDue && (
+          <div className="bg-red-50 border-l-4 border-red-500 rounded-xl p-5 flex items-start gap-3 shadow-sm">
+            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <AlertCircle className="w-5 h-5 text-red-600" />
+            </div>
+            <div className="flex-1">
+              <p className="text-red-900 font-semibold">{upcomingDue.serviceName} due in {getDaysUntil(upcomingDue.nextDueDate)} days</p>
+              <p className="text-red-700 text-sm mt-1">₹{upcomingDue.price} • {upcomingDue.nextDueDate}</p>
+            </div>
+          </div>
+        )}
+        </>
+        )}
       </div>
 
       <BottomNav />

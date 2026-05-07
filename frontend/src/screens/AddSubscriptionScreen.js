@@ -1,19 +1,17 @@
-import React, { useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View, TextInput, Switch, ScrollView } from 'react-native';
-import { Feather, Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import React, { useMemo, useState } from 'react';
+import { Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 
-import Theme from '../constants/theme';
-import { categories } from '../features/analytics/analyticsData';
+import Screen from '../components/Screen';
+import SelectField from '../components/SelectField';
+import SurfaceCard from '../components/SurfaceCard';
+import theme from '../constants/theme';
+import { categories } from '../data/mockData';
+import { formatDateDisplay } from '../utils/formatters';
 
-function formatDateDisplay(dateString) {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  if (isNaN(date.getTime())) return '';
-  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-export default function AddSubscriptionScreen({ onBack }) {
+export default function AddSubscriptionScreen() {
+  const navigation = useNavigation();
   const [formData, setFormData] = useState({
     serviceName: '',
     category: '',
@@ -28,434 +26,302 @@ export default function AddSubscriptionScreen({ onBack }) {
   });
 
   const handleChange = (field, value) => {
-    setFormData(prev => {
-      const newData = { ...prev, [field]: value };
-      
-      // Auto-calculate next due date
-      if (field === 'startDate' || field === 'billingType' || field === 'duration') {
-        const startDate = field === 'startDate' ? value : prev.startDate;
-        const billingType = field === 'billingType' ? value : prev.billingType;
-        const duration = field === 'duration' ? value : prev.duration;
-        
-        if (startDate) {
-          const date = new Date(startDate);
-          if (!isNaN(date.getTime())) {
-            if (billingType === 'Monthly') {
-              date.setMonth(date.getMonth() + 1);
-            } else if (billingType === 'Yearly') {
-              date.setFullYear(date.getFullYear() + 1);
-            } else if (billingType === 'Custom' && duration) {
-              date.setDate(date.getDate() + parseInt(duration));
-            }
-            newData.nextDueDate = date.toISOString().split('T')[0];
+    setFormData((current) => {
+      const next = { ...current, [field]: value };
+      const startDate = field === 'startDate' ? value : current.startDate;
+      const billingType = field === 'billingType' ? value : current.billingType;
+      const duration = field === 'duration' ? value : current.duration;
+
+      if (startDate && ['startDate', 'billingType', 'duration'].includes(field)) {
+        const date = new Date(startDate);
+
+        if (!Number.isNaN(date.getTime())) {
+          if (billingType === 'Monthly') {
+            date.setMonth(date.getMonth() + 1);
+          } else if (billingType === 'Yearly') {
+            date.setFullYear(date.getFullYear() + 1);
+          } else if (billingType === 'Custom' && duration) {
+            date.setDate(date.getDate() + Number(duration));
           }
-        } else {
-          newData.nextDueDate = '';
+
+          next.nextDueDate = date.toISOString().split('T')[0];
         }
       }
-      return newData;
+
+      if (field === 'startDate' && !value) {
+        next.nextDueDate = '';
+      }
+
+      return next;
     });
   };
 
-  const renderHeader = () => (
-    <View style={styles.header}>
-      <View style={styles.headerTop}>
-        <Pressable onPress={onBack} style={styles.backBtn}>
-          <Feather name="arrow-left" size={24} color="#0f172a" />
-        </Pressable>
-        <Text style={styles.headerTitle}>Add Subscription</Text>
-      </View>
-    </View>
-  );
+  const reminderOptions = ['3', '5', '7'];
+  const categoryOptions = useMemo(() => [...categories, '+ Add new category'], []);
 
-  const flatData = [
-    { type: 'basic' },
-    { type: 'billing' },
-    { type: 'date' },
-    { type: 'extra' },
-    { type: 'reminder' },
-    { type: 'submit' },
-  ];
-
-  const renderItem = ({ item }) => {
-    if (item.type === 'basic') {
-      return (
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Basic Information</Text>
-          <View style={styles.field}>
-            <Text style={styles.label}>Service Name</Text>
-            <TextInput 
-              value={formData.serviceName}
-              onChangeText={v => handleChange('serviceName', v)}
-              placeholder="e.g. Netflix"
-              style={styles.input}
-            />
-          </View>
-          <View style={styles.field}>
-            <Text style={styles.label}>Category</Text>
-            <View style={styles.pickerWrap}>
-              <TextInput 
-                value={formData.category}
-                onChangeText={v => handleChange('category', v)}
-                placeholder="Select or type category"
-                style={styles.pickerInput}
-              />
-              <Feather name="chevron-down" size={18} color="#94a3b8" />
-            </View>
-          </View>
+  return (
+    <Screen>
+      <View style={styles.header}>
+        <View style={styles.headerRow}>
+          <Pressable onPress={() => navigation.navigate('Dashboard')} style={styles.backButton}>
+            <Feather name="arrow-left" size={20} color={theme.colors.textPrimary} />
+          </Pressable>
+          <Text style={styles.headerTitle}>Add Subscription</Text>
         </View>
-      );
-    }
+      </View>
 
-    if (item.type === 'billing') {
-      return (
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Billing Details</Text>
-          <View style={styles.field}>
-            <Text style={styles.label}>Price (₹)</Text>
-            <TextInput 
-              value={formData.price}
-              onChangeText={v => handleChange('price', v)}
-              placeholder="0"
-              keyboardType="numeric"
-              style={styles.input}
-            />
-          </View>
-          <View style={styles.field}>
-            <Text style={styles.label}>Billing Type</Text>
-            <View style={styles.billingTypeRow}>
-              {['Monthly', 'Yearly', 'Custom'].map(t => (
-                <Pressable 
-                  key={t} 
-                  onPress={() => handleChange('billingType', t)}
-                  style={[styles.typeBtn, formData.billingType === t && styles.typeBtnActive]}
-                >
-                  <Text style={[styles.typeBtnText, formData.billingType === t && styles.typeBtnTextActive]}>{t}</Text>
-                </Pressable>
-              ))}
+      <View style={styles.content}>
+        <SurfaceCard style={styles.cardSpacing}>
+          <Text style={styles.sectionTitle}>Basic Information</Text>
+          <View>
+            <View style={styles.fieldGroupWithMargin}>
+              <Text style={styles.label}>Service Name</Text>
+              <TextInput
+                value={formData.serviceName}
+                onChangeText={(value) => handleChange('serviceName', value)}
+                placeholder="e.g. Netflix"
+                placeholderTextColor={theme.colors.textMuted}
+                style={styles.input}
+              />
+            </View>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Category</Text>
+              <SelectField
+                value={formData.category}
+                options={categoryOptions}
+                onSelect={(value) => handleChange('category', value)}
+                label="Category"
+                placeholder="Select category"
+                fullWidth={false}
+              />
             </View>
           </View>
-          {formData.billingType === 'Custom' && (
-            <View style={styles.field}>
-              <Text style={styles.label}>Duration (days)</Text>
-              <TextInput 
-                value={formData.duration}
-                onChangeText={v => handleChange('duration', v)}
-                placeholder="30"
+        </SurfaceCard>
+
+        <SurfaceCard style={styles.cardSpacing}>
+          <Text style={styles.sectionTitle}>Billing Details</Text>
+          <View>
+            <View style={styles.fieldGroupWithMargin}>
+              <Text style={styles.label}>Price (₹)</Text>
+              <TextInput
+                value={formData.price}
+                onChangeText={(value) => handleChange('price', value)}
+                placeholder="0"
+                placeholderTextColor={theme.colors.textMuted}
                 keyboardType="numeric"
                 style={styles.input}
               />
             </View>
-          )}
-        </View>
-      );
-    }
-
-    if (item.type === 'date') {
-      return (
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Date Information</Text>
-          <View style={styles.field}>
-            <Text style={styles.label}>Start Date (YYYY-MM-DD)</Text>
-            <View style={styles.inputWithIcon}>
-              <TextInput 
-                value={formData.startDate}
-                onChangeText={v => handleChange('startDate', v)}
-                placeholder="2026-01-01"
-                style={styles.inputTransparent}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Billing Type</Text>
+              <SelectField
+                value={formData.billingType}
+                options={['Monthly', 'Yearly', 'Custom']}
+                onSelect={(value) => handleChange('billingType', value)}
+                label="Billing Type"
+                fullWidth={false}
               />
-              <Feather name="calendar" size={18} color="#94a3b8" />
             </View>
+            {formData.billingType === 'Custom' && (
+              <View style={styles.fieldGroupExtraTop}>
+                <Text style={styles.label}>Duration (days)</Text>
+                <TextInput
+                  value={formData.duration}
+                  onChangeText={(value) => handleChange('duration', value)}
+                  placeholder="30"
+                  placeholderTextColor={theme.colors.textMuted}
+                  keyboardType="numeric"
+                  style={styles.input}
+                />
+              </View>
+            )}
           </View>
-          <View style={styles.field}>
-            <View style={styles.labelWithInfo}>
-              <Text style={styles.label}>Next Due Date</Text>
-              <Feather name="info" size={14} color="#94a3b8" />
-            </View>
-            <View style={styles.disabledInput}>
-              <Text style={styles.disabledInputText}>
-                {formData.nextDueDate ? formatDateDisplay(formData.nextDueDate) : 'Auto-calculated'}
-              </Text>
-              <Feather name="calendar" size={18} color="#94a3b8" />
-            </View>
-            <Text style={styles.helperText}>Auto-calculated based on billing type</Text>
-          </View>
-        </View>
-      );
-    }
+        </SurfaceCard>
 
-    if (item.type === 'extra') {
-      return (
-        <View style={styles.sectionCard}>
+        <SurfaceCard style={styles.cardSpacing}>
+          <Text style={styles.sectionTitle}>Date Information</Text>
+          <View>
+            <View style={styles.fieldGroupWithMargin}>
+              <Text style={styles.label}>Start Date</Text>
+              <TextInput
+                value={formData.startDate}
+                onChangeText={(value) => handleChange('startDate', value)}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={theme.colors.textMuted}
+                style={styles.input}
+              />
+            </View>
+            <View style={styles.fieldGroup}>
+              <View style={styles.infoLabelRow}>
+                <Text style={styles.label}>Next Due Date</Text>
+                <Feather name="info" size={14} color={theme.colors.textMuted} />
+              </View>
+              <View style={styles.readOnlyInput}>
+                <Text style={styles.readOnlyText}>
+                  {formData.nextDueDate ? formatDateDisplay(formData.nextDueDate) : 'Select start date and billing type'}
+                </Text>
+                <Feather name="calendar" size={18} color={theme.colors.textMuted} />
+              </View>
+              <Text style={styles.helpText}>Auto-calculated based on billing type and duration</Text>
+            </View>
+          </View>
+        </SurfaceCard>
+
+        <SurfaceCard style={styles.cardSpacing}>
           <Text style={styles.sectionTitle}>Additional Info</Text>
-          <View style={styles.field}>
+          <View style={styles.fieldGroup}>
             <Text style={styles.label}>Remark</Text>
-            <TextInput 
+            <TextInput
               value={formData.remark}
-              onChangeText={v => handleChange('remark', v)}
-              placeholder="e.g. Premium Plan"
+              onChangeText={(value) => handleChange('remark', value)}
+              placeholder="e.g. Premium Plan, Includes Ads, Family Plan..."
+              placeholderTextColor={theme.colors.textMuted}
               multiline
-              numberOfLines={3}
+              numberOfLines={4}
               style={[styles.input, styles.textArea]}
             />
           </View>
-        </View>
-      );
-    }
+        </SurfaceCard>
 
-    if (item.type === 'reminder') {
-      return (
-        <View style={styles.sectionCard}>
+        <SurfaceCard style={styles.cardSpacing}>
           <Text style={styles.sectionTitle}>Reminder Settings</Text>
-          <View style={styles.switchRow}>
-            <Text style={styles.labelNoMargin}>Enable Reminder</Text>
-            <Switch 
-              value={formData.reminderEnabled}
-              onValueChange={v => handleChange('reminderEnabled', v)}
-              trackColor={{ false: '#e2e8f0', true: '#3b82f6' }}
-              thumbColor="#fff"
-            />
-          </View>
-          {formData.reminderEnabled && (
-            <View style={styles.field}>
-              <Text style={styles.label}>Remind me before (days)</Text>
-              <View style={styles.daysRow}>
-                {['3', '5', '7'].map(d => (
-                  <Pressable 
-                    key={d} 
-                    onPress={() => handleChange('reminderDays', d)}
-                    style={[styles.dayBtn, formData.reminderDays === d && styles.dayBtnActive]}
-                  >
-                    <Text style={[styles.dayBtnText, formData.reminderDays === d && styles.dayBtnTextActive]}>{d} days</Text>
-                  </Pressable>
-                ))}
-              </View>
+          <View>
+            <View style={styles.switchRow}>
+              <Text style={styles.label}>Enable Reminder</Text>
+              <Switch
+                trackColor={{ false: '#D1D5DB', true: theme.colors.primary }}
+                thumbColor={theme.colors.white}
+                value={formData.reminderEnabled}
+                onValueChange={(value) => handleChange('reminderEnabled', value)}
+              />
             </View>
-          )}
-        </View>
-      );
-    }
 
-    if (item.type === 'submit') {
-      return (
-        <Pressable onPress={() => onBack()}>
-          <LinearGradient colors={['#3b82f6', '#8b5cf6']} style={styles.submitBtn}>
-            <Text style={styles.submitBtnText}>Save Subscription</Text>
-          </LinearGradient>
+            {formData.reminderEnabled && (
+              <View style={styles.fieldGroupExtraTop}>
+                <Text style={styles.label}>Remind me before (days)</Text>
+                <SelectField
+                  value={formData.reminderDays}
+                  options={reminderOptions}
+                  onSelect={(value) => handleChange('reminderDays', value)}
+                  label="Reminder Days"
+                  fullWidth={false}
+                />
+              </View>
+            )}
+          </View>
+        </SurfaceCard>
+
+        <Pressable style={styles.saveButton}>
+          <Text style={styles.saveButtonText}>Save Subscription</Text>
         </Pressable>
-      );
-    }
-
-    return null;
-  };
-
-  return (
-    <View style={styles.screen}>
-      <FlatList
-        data={flatData}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={renderItem}
-        ListHeaderComponent={renderHeader}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      />
-    </View>
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
   header: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    paddingTop: 32,
-    paddingBottom: 16,
+    borderBottomColor: theme.colors.border,
     paddingHorizontal: 16,
+    paddingVertical: 16,
   },
-  headerTop: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  backBtn: {
-    padding: 4,
+  backButton: {
+    marginLeft: -8,
+    padding: 8,
   },
   headerTitle: {
+    color: theme.colors.textPrimary,
     fontSize: 20,
+    lineHeight: 28,
     fontWeight: '600',
-    color: '#0f172a',
   },
   content: {
     paddingHorizontal: 16,
-    paddingVertical: 24,
-    gap: 24,
+    paddingTop: 24,
   },
-  sectionCard: {
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.02,
-    shadowRadius: 8,
-    elevation: 2,
+  cardSpacing: {
+    marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#0f172a',
+    marginBottom: 16,
+    color: theme.colors.textPrimary,
+    ...theme.typography.h2,
+  },
+  fieldGroup: {
+    marginBottom: 0,
+  },
+  fieldGroupWithMargin: {
     marginBottom: 16,
   },
-  field: {
-    marginBottom: 16,
+  fieldGroupExtraTop: {
+    marginTop: 16,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#4b5563',
     marginBottom: 8,
-  },
-  labelNoMargin: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#4b5563',
-  },
-  labelWithInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
+    color: theme.colors.textPrimary,
+    ...theme.typography.bodyMedium,
   },
   input: {
-    backgroundColor: '#fff',
+    minHeight: 52,
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 12,
+    borderColor: '#D1D5DB',
+    borderRadius: theme.radius.md,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: '#0f172a',
+    paddingVertical: 14,
+    color: theme.colors.textPrimary,
+    backgroundColor: theme.colors.surface,
+    ...theme.typography.body,
   },
-  inputTransparent: {
-    flex: 1,
-    fontSize: 15,
-    color: '#0f172a',
+  textArea: {
+    minHeight: 96,
+    textAlignVertical: 'top',
   },
-  inputWithIcon: {
+  infoLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    marginBottom: 8,
+  },
+  readOnlyInput: {
+    minHeight: 52,
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 12,
+    borderColor: '#E5E7EB',
+    borderRadius: theme.radius.md,
+    backgroundColor: '#F9FAFB',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  pickerWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  pickerInput: {
-    flex: 1,
-    fontSize: 15,
-    color: '#0f172a',
-  },
-  billingTypeRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  typeBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 10,
-    backgroundColor: '#f1f5f9',
-  },
-  typeBtnActive: {
-    backgroundColor: '#3b82f6',
-  },
-  typeBtnText: {
-    fontSize: 13,
-    color: '#64748b',
-    fontWeight: '500',
-  },
-  typeBtnTextActive: {
-    color: '#fff',
-  },
-  disabledInput: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
   },
-  disabledInputText: {
-    color: '#94a3b8',
-    fontSize: 15,
+  readOnlyText: {
+    color: '#6B7280',
+    ...theme.typography.body,
   },
-  helperText: {
-    fontSize: 11,
-    color: '#94a3b8',
-    marginTop: 6,
-  },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
+  helpText: {
+    color: theme.colors.textSecondary,
+    ...theme.typography.caption,
   },
   switchRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  daysRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  dayBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 10,
-    backgroundColor: '#f1f5f9',
-  },
-  dayBtnActive: {
-    backgroundColor: '#3b82f6',
-  },
-  dayBtnText: {
-    fontSize: 13,
-    color: '#64748b',
-    fontWeight: '500',
-  },
-  dayBtnTextActive: {
-    color: '#fff',
-  },
-  submitBtn: {
+  saveButton: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.radius.md,
     paddingVertical: 16,
-    borderRadius: 16,
     alignItems: 'center',
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    justifyContent: 'center',
+    ...theme.shadows.floating,
   },
-  submitBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  saveButtonText: {
+    color: theme.colors.white,
+    ...theme.typography.bodyMedium,
   },
 });

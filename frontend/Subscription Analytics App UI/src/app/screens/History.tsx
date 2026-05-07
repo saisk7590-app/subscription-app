@@ -180,27 +180,27 @@ export function History() {
                     };
 
                     return (
-                      <div key={payment.id} className="px-5 py-4 flex items-center justify-between">
-                        <div className="flex-1">
-                          <h4 className="text-gray-900 font-medium">{payment.serviceName}</h4>
-                          <div className="flex items-center gap-2 mt-1">
+                      <div key={payment.id} className="px-5 py-5 flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-gray-900 font-semibold mb-1.5">{payment.serviceName}</h4>
+                          <div className="flex items-center gap-2 mb-2">
                             <span className="text-xs text-gray-500">{formatDate(payment.date)}</span>
                             <span className="text-xs text-gray-400">•</span>
-                            <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">
+                            <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full font-medium">
                               {payment.category}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 mt-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-xs text-gray-500">
                               {formatDate(dates.startDate)} - {dates.endDate === 'Present' ? dates.endDate : formatDate(dates.endDate)}
                             </span>
-                            <span className={`text-xs px-2 py-0.5 border rounded-full ${statusColors[status as keyof typeof statusColors]}`}>
+                            <span className={`text-xs px-2.5 py-1 border rounded-full font-semibold ${statusColors[status as keyof typeof statusColors]}`}>
                               {status}
                             </span>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-lg font-semibold text-gray-900">₹{payment.amount}</p>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-xl font-bold text-gray-900">₹{payment.amount}</p>
                         </div>
                       </div>
                     );

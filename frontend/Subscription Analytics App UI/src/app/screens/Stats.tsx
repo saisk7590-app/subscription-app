@@ -68,7 +68,7 @@ export function Stats() {
   insights.push(`You spent ₹${Math.round(ottTotal3Years).toLocaleString()} on OTT in last 3 years`);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Search Bar */}
       <div className="relative">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -77,7 +77,7 @@ export function Stats() {
           placeholder="Search subscriptions..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full pl-12 pr-4 py-3.5 bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
         />
       </div>
 
@@ -85,9 +85,9 @@ export function Stats() {
       <div className="relative">
         <button
           onClick={() => setShowYearPicker(!showYearPicker)}
-          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl flex items-center justify-between shadow-sm"
+          className="w-full px-4 py-3.5 bg-white border border-gray-200 rounded-xl flex items-center justify-between shadow-sm hover:border-gray-300 transition-colors"
         >
-          <span className="text-gray-900 font-medium">{selectedYear}</span>
+          <span className="text-gray-900 font-semibold">{selectedYear}</span>
           <ChevronDown className="w-5 h-5 text-gray-400" />
         </button>
 
@@ -112,21 +112,21 @@ export function Stats() {
       </div>
 
       {/* Year Summary Card */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm">
-        <p className="text-gray-500 text-sm mb-2">Total Spending</p>
-        <p className="text-4xl font-bold text-gray-900">
+      <div className="bg-white rounded-2xl p-7 shadow-sm">
+        <p className="text-gray-500 text-sm mb-3">Total Spending</p>
+        <p className="text-5xl font-bold text-gray-900 mb-3">
           ₹{currentYearData ? currentYearData.amount.toLocaleString() : Math.round(totalYearlySpending).toLocaleString()}
         </p>
         {percentageChange !== 0 && (
-          <div className={`flex items-center gap-2 mt-3 ${
-            percentageChange > 0 ? 'text-green-600' : 'text-red-600'
+          <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold ${
+            percentageChange > 0 ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
           }`}>
             {percentageChange > 0 ? (
               <TrendingUp className="w-4 h-4" />
             ) : (
               <TrendingDown className="w-4 h-4" />
             )}
-            <span className="font-semibold">
+            <span>
               {Math.abs(Math.round(percentageChange))}% vs {Number(selectedYear) - 1}
             </span>
           </div>
@@ -134,16 +134,16 @@ export function Stats() {
       </div>
 
       {/* Category Totals Section */}
-      <div className="bg-white rounded-2xl p-5 shadow-sm">
-        <h2 className="text-gray-900 font-semibold mb-4">Category Breakdown</h2>
-        <div className="space-y-3">
+      <div className="bg-white rounded-2xl p-6 shadow-sm">
+        <h2 className="text-gray-900 font-semibold text-lg mb-5">Category Breakdown</h2>
+        <div className="space-y-4">
           {categoriesWithPercentage.map((cat) => (
             <div key={cat.category} className="flex items-center justify-between py-2">
               <div className="flex-1">
-                <p className="text-gray-900 font-medium">{cat.category}</p>
-                <p className="text-sm text-gray-500">{Math.round(cat.percentage)}%</p>
+                <p className="text-gray-900 font-semibold">{cat.category}</p>
+                <p className="text-sm text-gray-500 mt-0.5">{Math.round(cat.percentage)}% of total</p>
               </div>
-              <p className="text-lg font-bold text-gray-900">
+              <p className="text-xl font-bold text-gray-900">
                 ₹{Math.round(cat.amount).toLocaleString()}
               </p>
             </div>
@@ -152,38 +152,48 @@ export function Stats() {
       </div>
 
       {/* Category Insights */}
-      <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 shadow-sm">
-        <h2 className="text-gray-900 font-semibold mb-3">Insights</h2>
-        <ul className="space-y-2">
+      <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-100 rounded-2xl p-6 shadow-sm">
+        <h2 className="text-gray-900 font-semibold text-lg mb-4">Insights</h2>
+        <ul className="space-y-3">
           {insights.map((insight, index) => (
-            <li key={index} className="flex items-start gap-2 text-blue-900">
-              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
-              <span className="text-sm">{insight}</span>
+            <li key={index} className="flex items-start gap-3 text-blue-900">
+              <span className="w-2 h-2 bg-blue-500 rounded-full mt-1.5 flex-shrink-0" />
+              <span className="text-sm leading-relaxed">{insight}</span>
             </li>
           ))}
         </ul>
       </div>
 
       {/* Service List */}
-      <div className="bg-white rounded-2xl p-5 shadow-sm">
-        <h2 className="text-gray-900 font-semibold mb-4">All Services</h2>
-        <div className="space-y-3">
-          {serviceTotals.map((service) => (
-            <div
-              key={service.id}
-              className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50 rounded-lg px-2 -mx-2 transition-colors"
-              onClick={() => navigate(`/service/${service.serviceName}`)}
-            >
-              <div className="flex-1">
-                <p className="text-gray-900 font-medium">{service.serviceName}</p>
-                <p className="text-sm text-gray-500">{service.billingType}</p>
+      <div className="bg-white rounded-2xl p-6 shadow-sm">
+        <h2 className="text-gray-900 font-semibold text-lg mb-5">All Services</h2>
+        {serviceTotals.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-gray-500 mb-2">No data available</p>
+            <p className="text-sm text-gray-400">Add subscription to get insights</p>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {serviceTotals.map((service) => (
+              <div
+                key={service.id}
+                className="flex items-center justify-between py-3 px-3 -mx-3 border-b border-gray-100 last:border-0 cursor-pointer hover:bg-gray-50 rounded-lg transition-colors"
+                onClick={() => navigate(`/service/${service.serviceName}`)}
+              >
+                <div className="flex-1">
+                  <p className="text-gray-900 font-semibold">{service.serviceName}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{service.billingType}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-gray-900">
+                    ₹{Math.round(service.yearlyTotal).toLocaleString()}
+                  </p>
+                  <p className="text-xs text-gray-400">yearly</p>
+                </div>
               </div>
-              <p className="text-lg font-bold text-gray-900">
-                ₹{Math.round(service.yearlyTotal).toLocaleString()}
-              </p>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

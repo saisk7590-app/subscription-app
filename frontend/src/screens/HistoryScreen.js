@@ -1,404 +1,233 @@
 import React, { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View, TextInput } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Feather } from '@expo/vector-icons';
 
-import Theme from '../constants/theme';
-import { payments, categories, subscriptions } from '../features/analytics/analyticsData';
+import GradientHeader from '../components/GradientHeader';
+import Screen from '../components/Screen';
+import SearchField from '../components/SearchField';
+import SelectField from '../components/SelectField';
+import SurfaceCard from '../components/SurfaceCard';
+import theme from '../constants/theme';
+import { categories, payments, subscriptions } from '../data/mockData';
+import { formatCurrency, formatDate } from '../utils/formatters';
 
-function formatCurrency(value) {
-  return `₹${value.toLocaleString()}`;
-}
-
-function formatDate(dateString) {
-  if (!dateString) return '';
-  return new Date(dateString).toLocaleDateString('en-US', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric'
-  });
-}
-
-export default function HistoryScreen({ onSelectService }) {
+export default function HistoryScreen() {
   const [yearFilter, setYearFilter] = useState('2026');
   const [categoryFilter, setCategoryFilter] = useState('All');
-  const [showYearPicker, setShowYearPicker] = useState(false);
-  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const years = ['2024', '2025', '2026'];
 
-  const filteredPayments = useMemo(() => {
-    return payments.filter(payment => {
-      const matchesYear = payment.date.startsWith(yearFilter);
-      const matchesCategory = categoryFilter === 'All' || payment.category === categoryFilter;
-      const matchesSearch = payment.serviceName.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesYear && matchesCategory && matchesSearch;
-    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [yearFilter, categoryFilter, searchQuery]);
+  const filteredPayments = payments.filter((payment) => {
+    const matchesYear = payment.date.startsWith(yearFilter);
+    const matchesCategory = categoryFilter === 'All' || payment.category === categoryFilter;
+    const matchesSearch = payment.serviceName.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesYear && matchesCategory && matchesSearch;
+  });
 
   const groupedByMonth = useMemo(() => {
-    return filteredPayments.reduce((acc, payment) => {
+    const sortedPayments = [...filteredPayments].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return sortedPayments.reduce((acc, payment) => {
       const month = new Date(payment.date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-      if (!acc[month]) {
-        acc[month] = [];
-      }
+      acc[month] = acc[month] || [];
       acc[month].push(payment);
       return acc;
     }, {});
   }, [filteredPayments]);
 
-  const flatData = useMemo(() => {
-    const data = [];
-    Object.entries(groupedByMonth).forEach(([month, monthPayments]) => {
-      data.push({ type: 'header', value: month });
-      monthPayments.forEach(p => data.push({ type: 'payment', value: p }));
-    });
-    if (filteredPayments.length > 0) {
-      data.push({ type: 'summary' });
-    }
-    return data;
-  }, [groupedByMonth, filteredPayments]);
-
-  const getSubscriptionStatus = (serviceName) => {
-    const sub = subscriptions.find(s => s.serviceName === serviceName);
-    return sub?.status || 'Active';
-  };
-
-  const getSubscriptionDates = (serviceName) => {
-    const sub = subscriptions.find(s => s.serviceName === serviceName);
-    return {
-      startDate: sub?.startDate || '',
-      endDate: sub?.endDate || 'Present',
-    };
-  };
-
-  const renderHeader = () => (
-    <View>
-      <LinearGradient colors={['#3b82f6', '#8b5cf6']} style={styles.header}>
-        <Text style={styles.headerTitle}>Payment History</Text>
-        <Text style={styles.headerSubtitle}>Track all your payments</Text>
-      </LinearGradient>
-
-      <View style={styles.filterSection}>
-        <View style={styles.searchBar}>
-          <Feather name="search" size={18} color="#94a3b8" />
-          <TextInput 
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search subscriptions..."
-            placeholderTextColor="#94a3b8"
-            style={styles.searchInput}
-          />
-        </View>
-
-        <View style={styles.filterRow}>
-          <View style={{ flex: 1, zIndex: 20 }}>
-            <Pressable 
-              onPress={() => { setShowYearPicker(!showYearPicker); setShowCategoryPicker(false); }}
-              style={styles.pickerButton}
-            >
-              <Text style={styles.pickerButtonText}>{yearFilter}</Text>
-              <Feather name="filter" size={16} color="#94a3b8" />
-            </Pressable>
-            {showYearPicker && (
-              <View style={styles.dropdown}>
-                {years.map(y => (
-                  <Pressable key={y} onPress={() => { setYearFilter(y); setShowYearPicker(false); }} style={styles.dropdownItem}>
-                    <Text style={[styles.dropdownText, yearFilter === y && styles.activeDropdownText]}>{y}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-          </View>
-
-          <View style={{ flex: 1, zIndex: 10 }}>
-            <Pressable 
-              onPress={() => { setShowCategoryPicker(!showCategoryPicker); setShowYearPicker(false); }}
-              style={styles.pickerButton}
-            >
-              <Text style={styles.pickerButtonText}>{categoryFilter}</Text>
-              <Feather name="filter" size={16} color="#94a3b8" />
-            </Pressable>
-            {showCategoryPicker && (
-              <View style={styles.dropdown}>
-                <Pressable onPress={() => { setCategoryFilter('All'); setShowCategoryPicker(false); }} style={styles.dropdownItem}>
-                  <Text style={[styles.dropdownText, categoryFilter === 'All' && styles.activeDropdownText]}>All Categories</Text>
-                </Pressable>
-                {categories.map(c => (
-                  <Pressable key={c} onPress={() => { setCategoryFilter(c); setShowCategoryPicker(false); }} style={styles.dropdownItem}>
-                    <Text style={[styles.dropdownText, categoryFilter === c && styles.activeDropdownText]}>{c}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-          </View>
-        </View>
-      </View>
-    </View>
-  );
-
-  const renderItem = ({ item }) => {
-    if (item.type === 'header') {
-      return <Text style={styles.monthHeader}>{item.value}</Text>;
-    }
-
-    if (item.type === 'payment') {
-      const payment = item.value;
-      const status = getSubscriptionStatus(payment.serviceName);
-      const dates = getSubscriptionDates(payment.serviceName);
-      const statusColors = {
-        Active: { bg: '#f0fdf4', text: '#16a34a', border: '#bcfce7' },
-        Cancelled: { bg: '#f9fafb', text: '#4b5563', border: '#e5e7eb' },
-        Paused: { bg: '#fffaf0', text: '#ea580c', border: '#ffeddf' },
-      };
-      const colors = statusColors[status] || statusColors.Active;
-
-      return (
-        <Pressable 
-          onPress={() => onSelectService(payment.serviceName)}
-          style={styles.paymentCard}
-        >
-          <View style={styles.paymentLeft}>
-            <Text style={styles.serviceName}>{payment.serviceName}</Text>
-            <View style={styles.metaRow}>
-              <Text style={styles.metaText}>{formatDate(payment.date)}</Text>
-              <Text style={styles.metaDot}>•</Text>
-              <View style={styles.categoryBadge}>
-                <Text style={styles.categoryBadgeText}>{payment.category}</Text>
-              </View>
-            </View>
-            <View style={styles.metaRow}>
-              <Text style={styles.metaText}>
-                {formatDate(dates.startDate)} - {dates.endDate === 'Present' ? dates.endDate : formatDate(dates.endDate)}
-              </Text>
-              <View style={[styles.statusBadge, { backgroundColor: colors.bg, borderColor: colors.border }]}>
-                <Text style={[styles.statusBadgeText, { color: colors.text }]}>{status}</Text>
-              </View>
-            </View>
-          </View>
-          <Text style={styles.paymentAmount}>{formatCurrency(payment.amount)}</Text>
-        </Pressable>
-      );
-    }
-
-    if (item.type === 'summary') {
-      return (
-        <LinearGradient colors={['#3b82f6', '#8b5cf6']} style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Total Spent ({yearFilter})</Text>
-          <Text style={styles.summaryValue}>
-            {formatCurrency(filteredPayments.reduce((sum, p) => sum + p.amount, 0))}
-          </Text>
-          <Text style={styles.summaryMeta}>
-            {filteredPayments.length} payment{filteredPayments.length !== 1 ? 's' : ''}
-          </Text>
-        </LinearGradient>
-      );
-    }
-
-    return null;
-  };
+  const getSubscriptionStatus = (serviceName) => subscriptions.find((item) => item.serviceName === serviceName)?.status || 'Active';
+  const getSubscriptionDates = (serviceName) => subscriptions.find((item) => item.serviceName === serviceName) || {};
 
   return (
-    <View style={styles.screen}>
-      <FlatList
-        data={flatData}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={renderItem}
-        ListHeaderComponent={renderHeader}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      />
-    </View>
+    <Screen>
+      <GradientHeader title="Payment History" subtitle="Track all your payments" />
+
+      <View style={styles.content}>
+        <SearchField value={searchQuery} onChangeText={setSearchQuery} placeholder="Search subscriptions..." />
+
+        <View style={styles.filtersRow}>
+          <SelectField value={yearFilter} options={years} onSelect={setYearFilter} label="Year" />
+          <SelectField value={categoryFilter} options={['All', ...categories]} onSelect={setCategoryFilter} label="Category" />
+        </View>
+
+        <View style={styles.groupWrap}>
+          {Object.keys(groupedByMonth).length === 0 ? (
+            <SurfaceCard>
+              <Text style={styles.emptyText}>No payments found</Text>
+            </SurfaceCard>
+          ) : (
+            Object.entries(groupedByMonth).map(([month, monthPayments]) => (
+              <View key={month} style={styles.monthSection}>
+                <Text style={styles.monthTitle}>{month}</Text>
+                <SurfaceCard style={styles.monthCard}>
+                  {monthPayments.map((payment, index) => {
+                    const status = getSubscriptionStatus(payment.serviceName);
+                    const subscription = getSubscriptionDates(payment.serviceName);
+                    const datesText = subscription.endDate === 'Present' || !subscription.endDate
+                      ? `${formatDate(subscription.startDate)} - Present`
+                      : `${formatDate(subscription.startDate)} - ${formatDate(subscription.endDate)}`;
+
+                    return (
+                      <View key={payment.id} style={[styles.paymentRow, index !== monthPayments.length - 1 && styles.paymentBorder]}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.paymentName}>{payment.serviceName}</Text>
+                          <View style={styles.paymentMetaRow}>
+                            <Text style={styles.paymentMeta}>{formatDate(payment.date)}</Text>
+                            <Text style={styles.paymentDivider}>•</Text>
+                            <View style={styles.categoryChip}>
+                              <Text style={styles.categoryChipText}>{payment.category}</Text>
+                            </View>
+                          </View>
+                          <View style={styles.paymentMetaRow}>
+                            <Text style={styles.paymentMeta}>{datesText}</Text>
+                            <View style={[styles.statusChip, status === 'Active' ? styles.activeStatus : styles.pausedStatus]}>
+                              <Text style={[styles.statusText, status === 'Active' ? styles.activeStatusText : styles.pausedStatusText]}>{status}</Text>
+                            </View>
+                          </View>
+                        </View>
+                        <Text style={styles.amountText}>{formatCurrency(payment.amount)}</Text>
+                      </View>
+                    );
+                  })}
+                </SurfaceCard>
+              </View>
+            ))
+          )}
+        </View>
+
+        {!!filteredPayments.length && (
+          <LinearGradient colors={[theme.colors.primary, theme.colors.purple]} style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Total Spent ({yearFilter})</Text>
+            <Text style={styles.summaryAmount}>{formatCurrency(filteredPayments.reduce((sum, item) => sum + item.amount, 0))}</Text>
+            <Text style={styles.summaryMeta}>
+              {filteredPayments.length} payment{filteredPayments.length !== 1 ? 's' : ''}
+            </Text>
+          </LinearGradient>
+        )}
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 32,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  headerSubtitle: {
-    color: '#dbeafe',
-    fontSize: 14,
-    marginTop: 4,
-  },
-  filterSection: {
+  content: {
     paddingHorizontal: 16,
-    paddingVertical: 24,
+    paddingTop: 24,
     gap: 16,
   },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    height: 52,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 12,
-    fontSize: 14,
-    color: '#0f172a',
-  },
-  filterRow: {
+  filtersRow: {
     flexDirection: 'row',
     gap: 12,
   },
-  pickerButton: {
+  groupWrap: {
+    gap: 24,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: theme.colors.textSecondary,
+    ...theme.typography.body,
+  },
+  monthSection: {
+    gap: 12,
+  },
+  monthTitle: {
+    paddingHorizontal: 4,
+    color: theme.colors.textSecondary,
+    ...theme.typography.captionStrong,
+  },
+  monthCard: {
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    overflow: 'hidden',
+  },
+  paymentRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    padding: 12,
+    gap: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
   },
-  pickerButtonText: {
-    color: '#0f172a',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  dropdown: {
-    position: 'absolute',
-    top: 50,
-    left: 0,
-    right: 0,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-    zIndex: 100,
-    maxHeight: 200,
-  },
-  dropdownItem: {
-    padding: 14,
+  paymentBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: '#F3F4F6',
   },
-  dropdownText: {
-    color: '#0f172a',
-    fontSize: 14,
+  paymentName: {
+    color: theme.colors.textPrimary,
+    ...theme.typography.h3,
   },
-  activeDropdownText: {
-    color: '#3b82f6',
-    fontWeight: '600',
-  },
-  content: {
-    paddingBottom: 24,
-  },
-  monthHeader: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#64748b',
-    marginBottom: 12,
-    paddingHorizontal: 18,
-    marginTop: 16,
-  },
-  paymentCard: {
-    backgroundColor: '#fff',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    marginHorizontal: 16,
-    marginBottom: 1,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-  },
-  paymentLeft: {
-    flex: 1,
-  },
-  serviceName: {
-    color: '#0f172a',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  metaRow: {
+  paymentMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 6,
+    flexWrap: 'wrap',
+    marginTop: 8,
   },
-  metaText: {
-    color: '#64748b',
-    fontSize: 12,
+  paymentMeta: {
+    color: theme.colors.textSecondary,
+    ...theme.typography.caption,
   },
-  metaDot: {
-    color: '#94a3b8',
-    fontSize: 12,
+  paymentDivider: {
+    color: theme.colors.textMuted,
   },
-  categoryBadge: {
-    backgroundColor: '#eff6ff',
+  categoryChip: {
+    borderRadius: theme.radius.pill,
+    backgroundColor: '#EFF6FF',
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 12,
   },
-  categoryBadgeText: {
-    color: '#2563eb',
-    fontSize: 10,
-    fontWeight: '500',
+  categoryChipText: {
+    color: theme.colors.primary,
+    ...theme.typography.captionStrong,
   },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
+  statusChip: {
+    borderRadius: theme.radius.pill,
     borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
-  statusBadgeText: {
-    fontSize: 10,
-    fontWeight: '500',
+  activeStatus: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#BBF7D0',
   },
-  paymentAmount: {
-    color: '#0f172a',
-    fontSize: 18,
-    fontWeight: '600',
+  pausedStatus: {
+    backgroundColor: '#FFF7ED',
+    borderColor: '#FED7AA',
+  },
+  statusText: {
+    ...theme.typography.captionStrong,
+  },
+  activeStatusText: {
+    color: theme.colors.green,
+  },
+  pausedStatusText: {
+    color: '#EA580C',
+  },
+  amountText: {
+    color: theme.colors.textPrimary,
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: '700',
   },
   summaryCard: {
-    borderRadius: 24,
+    borderRadius: theme.radius.lg,
     padding: 20,
-    marginHorizontal: 16,
-    marginTop: 24,
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    ...theme.shadows.floating,
   },
   summaryLabel: {
-    color: '#dbeafe',
-    fontSize: 14,
-    marginBottom: 8,
+    color: theme.colors.blueTextSoft,
+    ...theme.typography.body,
   },
-  summaryValue: {
-    color: '#fff',
-    fontSize: 28,
+  summaryAmount: {
+    marginTop: 8,
+    color: theme.colors.white,
+    fontSize: 32,
+    lineHeight: 40,
     fontWeight: '700',
   },
   summaryMeta: {
-    color: '#dbeafe',
-    fontSize: 14,
     marginTop: 8,
+    color: theme.colors.blueTextSoft,
+    ...theme.typography.body,
   },
 });

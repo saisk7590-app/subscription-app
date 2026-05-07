@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter } from "react-router-dom";
 import { Dashboard } from "./screens/Dashboard";
 import { AddSubscription } from "./screens/AddSubscription";
 import { Analytics } from "./screens/Analytics";

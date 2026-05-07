@@ -66,33 +66,35 @@ export function Reminders() {
         {/* Urgent Reminders */}
         {urgentReminders.length > 0 && (
           <div>
-            <div className="flex items-center gap-2 mb-3 px-1">
-              <AlertCircle className="w-5 h-5 text-red-500" />
-              <h2 className="text-sm font-semibold text-red-600">URGENT</h2>
+            <div className="flex items-center gap-2 mb-4 px-1">
+              <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+              </div>
+              <h2 className="text-sm font-bold text-red-600 uppercase tracking-wide">Urgent</h2>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-4">
               {urgentReminders.map((reminder) => (
                 <div
                   key={reminder.id}
-                  className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 shadow-sm"
+                  className="bg-red-50 border-l-4 border-red-500 rounded-2xl p-5 shadow-md"
                 >
-                  <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
-                      <h3 className="text-gray-900 font-semibold text-lg">{reminder.serviceName}</h3>
-                      <p className="text-sm text-gray-600 mt-0.5">{reminder.category}</p>
+                      <h3 className="text-gray-900 font-bold text-lg">{reminder.serviceName}</h3>
+                      <p className="text-sm text-gray-600 mt-1">{reminder.category}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xl font-bold text-red-600">₹{reminder.price}</p>
+                      <p className="text-2xl font-bold text-red-700">₹{reminder.price}</p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between pt-3 border-t border-red-200">
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                      <span className="text-sm font-medium text-red-700">
+                      <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
+                      <span className="text-sm font-bold text-red-700">
                         Due {getDaysText(reminder.daysUntil)}
                       </span>
                     </div>
-                    <span className="text-sm text-gray-600">{formatDate(reminder.nextDueDate)}</span>
+                    <span className="text-sm text-gray-600 font-medium">{formatDate(reminder.nextDueDate)}</span>
                   </div>
                 </div>
               ))}
@@ -103,30 +105,30 @@ export function Reminders() {
         {/* Upcoming Reminders */}
         {upcomingReminders.length > 0 && (
           <div>
-            <h2 className="text-sm font-semibold text-gray-500 mb-3 px-1">UPCOMING</h2>
-            <div className="space-y-3">
+            <h2 className="text-sm font-bold text-gray-500 mb-4 px-1 uppercase tracking-wide">Upcoming</h2>
+            <div className="space-y-4">
               {upcomingReminders.map((reminder) => (
                 <div
                   key={reminder.id}
-                  className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm"
+                  className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow"
                 >
-                  <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
-                      <h3 className="text-gray-900 font-semibold text-lg">{reminder.serviceName}</h3>
-                      <p className="text-sm text-gray-500 mt-0.5">{reminder.category}</p>
+                      <h3 className="text-gray-900 font-bold text-lg">{reminder.serviceName}</h3>
+                      <p className="text-sm text-gray-500 mt-1">{reminder.category}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xl font-bold text-gray-900">₹{reminder.price}</p>
+                      <p className="text-2xl font-bold text-gray-900">₹{reminder.price}</p>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                  <div className="flex items-center justify-between pt-3 border-t border-gray-200">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                      <span className="text-sm font-medium text-blue-600">
+                      <span className="text-sm font-semibold text-blue-600">
                         Due {getDaysText(reminder.daysUntil)}
                       </span>
                     </div>
-                    <span className="text-sm text-gray-600">{formatDate(reminder.nextDueDate)}</span>
+                    <span className="text-sm text-gray-600 font-medium">{formatDate(reminder.nextDueDate)}</span>
                   </div>
                 </div>
               ))}

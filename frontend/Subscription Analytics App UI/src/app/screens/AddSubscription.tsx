@@ -3,7 +3,7 @@ import { MobileContainer } from '../components/MobileContainer';
 import { BottomNav } from '../components/BottomNav';
 import { categories } from '../data/mockData';
 import { ArrowLeft, Calendar, Info } from 'lucide-react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 
 export function AddSubscription() {
   const navigate = useNavigate();
